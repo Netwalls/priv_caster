@@ -1,0 +1,3 @@
+// This is a placeholder for the browser.wasm file required by the Provable SDK.
+// You must obtain the correct browser.wasm file from the @provablehq/sdk package or its releases.
+// Place the actual browser.wasm binary here for the SDK to work.
