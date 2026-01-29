@@ -15,3 +15,8 @@ The React Compiler is not enabled on this template because of its impact on dev 
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 # priv_caster
+
+
+privcaster_v1.aleo is now live on Aleo testnet!
+
+Transaction: https://explorer.aleo.org/transaction/at1tqar505gk8x7wrsuyx4pc7cdmhyfdh7knlvtg7ktq08wur4c0gxq6ghvky

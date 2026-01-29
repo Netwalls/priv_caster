@@ -1,13 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAleoWallet } from '../hooks/useAleoWallet';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-    const { publicKey } = useWallet();
+    const {
+        publicKey,
+        connected,
+        createIdentity,
+        createCast,
+        getIdentities,
+        getCasts,
+        decryptMessage,
+        tipPost
+    } = useAleoWallet();
+
     const walletAddress = publicKey || null;
 
-    // Initial user data
+    // Aleo specific state
+    const [aleoIdentity, setAleoIdentity] = useState(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [onChainPosts, setOnChainPosts] = useState([]);
+
+    // Initial user data (fallback/demo)
     const [user, setUser] = useState({
         name: "Tech Hunter",
         username: "techhunter",
@@ -20,7 +35,7 @@ export const AppProvider = ({ children }) => {
         avatar: "T"
     });
 
-    // Initial posts data
+    // Initial posts data (demo)
     const [posts, setPosts] = useState([
         {
             id: '1',
@@ -47,24 +62,65 @@ export const AppProvider = ({ children }) => {
             relays: 84,
             isLiked: false,
             timestamp: Date.now() - 2700000
-        },
-        {
-            id: '3',
-            user: 'ghost_dev',
-            userId: '0x1D8...4F3',
-            text: "If you can see my social graph, you can see my soul. This is why we build on Aleo.",
-            verified: false,
-            time: '1h ago',
-            likes: 89,
-            replies: 8,
-            relays: 24,
-            isLiked: false,
-            timestamp: Date.now() - 3600000
         }
     ]);
 
+    // Sync Aleo Identity and Posts
+    const syncWithBlockchain = useCallback(async () => {
+        if (!connected || !publicKey) return;
+
+        setIsSyncing(true);
+        try {
+            // 1. Fetch Identities
+            const identities = await getIdentities();
+            if (identities && identities.length > 0) {
+                // For simplicity, take the first one or most recent
+                setAleoIdentity(identities[0]);
+                console.log("Found Aleo Identity:", identities[0]);
+            }
+
+            // 2. Fetch Casts
+            const casts = await getCasts();
+            // Note: In a real app, we'd need to decrypt the content_hash or fetch off-chain data
+            // For now, we'll map them to the post format
+            const syncCasts = casts.map(c => ({
+                id: c.id,
+                user: 'Anonymous', // Would come from mapping or decryption
+                userId: 'Private Record',
+                text: "Decrypted on-chain cast", // Placeholder for actual content
+                verified: true,
+                time: 'On-chain',
+                likes: 0,
+                replies: 0,
+                relays: 0,
+                isLiked: false,
+                timestamp: Date.now(),
+                isOnChain: true
+            }));
+
+            setOnChainPosts(syncCasts);
+        } catch (error) {
+            console.error("Blockchain sync failed:", error);
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [connected, publicKey, getIdentities, getCasts]);
+
     // Handle adding a new post
-    const addPost = (text) => {
+    const addPost = async (text, isPrivate = false) => {
+        if (isPrivate && connected && aleoIdentity) {
+            try {
+                // In production, we'd encrypt the content and generate a cast_id
+                const castId = `${Math.random().toString(36).substring(7)}field`;
+                const contentHash = `0field`; // In production: hash of encrypted content
+
+                await createCast(aleoIdentity, castId, contentHash);
+                // After successful transaction, we usually wait for confirmation
+            } catch (error) {
+                console.error("On-chain cast failed:", error);
+            }
+        }
+
         const newPost = {
             id: Date.now().toString(),
             user: user.name,
@@ -76,12 +132,32 @@ export const AppProvider = ({ children }) => {
             replies: 0,
             relays: 0,
             isLiked: false,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isPrivate: isPrivate,
+            canDecrypt: true, // Owner can always decrypt their own posts
+            onChain: isPrivate && connected
         };
         setPosts([newPost, ...posts]);
     };
 
-    // Handle liking/unliking a post
+    // Initialize Identity if not exists (One-time setup)
+    const setupIdentity = async (username) => {
+        if (!connected) return;
+        try {
+            const userIdField = `${Math.random().toString(36).substring(7)}field`;
+            await createIdentity(userIdField, 10); // Start with 10 rep
+        } catch (error) {
+            console.error("Identity setup failed:", error);
+        }
+    };
+
+    // Effect to sync on connection
+    useEffect(() => {
+        if (connected) {
+            syncWithBlockchain();
+        }
+    }, [connected, syncWithBlockchain]);
+
     const toggleLike = (postId) => {
         setPosts(posts.map(post => {
             if (post.id === postId) {
@@ -95,7 +171,6 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
-    // Handle adding a reply (simplified for now as incrementing count)
     const addReply = (postId) => {
         setPosts(posts.map(post => {
             if (post.id === postId) {
@@ -108,20 +183,27 @@ export const AppProvider = ({ children }) => {
         }));
     };
 
-    // Update user profile
     const updateProfile = (newData) => {
         setUser(prev => ({ ...prev, ...newData }));
     };
 
+    // Combine posts
+    const allPosts = [...onChainPosts, ...posts].sort((a, b) => b.timestamp - a.timestamp);
+
     return (
         <AppContext.Provider value={{
             user,
-            posts,
+            posts: allPosts,
             walletAddress,
+            aleoIdentity,
+            isSyncing,
+            connected,
             addPost,
             toggleLike,
             addReply,
-            updateProfile
+            updateProfile,
+            setupIdentity,
+            syncWithBlockchain
         }}>
             {children}
         </AppContext.Provider>

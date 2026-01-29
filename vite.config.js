@@ -3,12 +3,28 @@ import react from '@vitejs/plugin-react'
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
+// Custom plugin to ensure WASM files are served with correct MIME type
+function wasmMimePlugin() {
+  return {
+    name: 'wasm-mime-plugin',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url && req.url.endsWith('.wasm')) {
+          res.setHeader('Content-Type', 'application/wasm');
+        }
+        next();
+      });
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     wasm(),
-    topLevelAwait()
+    topLevelAwait(),
+    wasmMimePlugin()
   ],
   optimizeDeps: {
     // We removed the exclude here to allow Vite to pre-bundle the SDK 
@@ -21,24 +37,10 @@ export default defineConfig({
   server: {
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin"
-    },
-    // Ensure WASM files are served with the correct MIME type
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const url = new URL(req.url, 'http://localhost');
-        if (url.pathname.endsWith('.wasm')) {
-          res.setHeader('Content-Type', 'application/wasm');
-          // If the request is looking for WASM in a subfolder (like .vite/deps),
-          // redirect it to the root where we have the real file in public/
-          if (url.pathname !== '/aleo_wasm.wasm' && url.pathname.includes('aleo_wasm.wasm')) {
-            req.url = '/aleo_wasm.wasm';
-          }
-        }
-        next();
-      });
     }
   },
   build: {
     target: 'esnext'
   }
 })
+

@@ -1,206 +1,399 @@
-import { useState } from 'react';
-import { Shield, Users, ArrowRight, CheckCircle, Lock, Wallet } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Shield, Users, ArrowRight, CheckCircle, Lock, Plus, X, Trash2, Loader, AlertCircle, ExternalLink } from 'lucide-react';
+import { useAleoWallet } from '../../hooks/useAleoWallet';
 
 const PayoutFlow = () => {
+    const {
+        createPayoutPool,
+        transferCredits,
+        connected,
+        publicKey,
+        getRecords,
+        formatAddress
+    } = useAleoWallet();
+
     const [step, setStep] = useState(1);
     const [amount, setAmount] = useState('');
-    const [selectedCriteria, setSelectedCriteria] = useState('followers_engagement');
+    const [recipients, setRecipients] = useState([]);
+    const [newRecipient, setNewRecipient] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [txId, setTxId] = useState(null);
+    const [error, setError] = useState(null);
+    const [txHistory, setTxHistory] = useState([]);
 
-    const handleNext = () => {
-        if (step < 3) setStep(step + 1);
+    // Add a recipient address
+    const addRecipient = () => {
+        const address = newRecipient.trim();
+        if (!address) return;
+
+        // Validate Aleo address format (starts with aleo1)
+        if (!address.startsWith('aleo1')) {
+            setError('Invalid Aleo address. Must start with "aleo1"');
+            return;
+        }
+
+        if (recipients.find(r => r.address === address)) {
+            setError('Address already added');
+            return;
+        }
+
+        setRecipients([...recipients, {
+            id: Date.now().toString(),
+            address: address,
+            display: formatAddress ? formatAddress(address) : `${address.slice(0, 8)}...${address.slice(-6)}`
+        }]);
+        setNewRecipient('');
+        setError(null);
     };
 
-    const handleProcess = () => {
+    const removeRecipient = (id) => {
+        setRecipients(recipients.filter(r => r.id !== id));
+    };
+
+    const handleNext = () => {
+        if (step < 3) {
+            setError(null);
+            setStep(step + 1);
+        }
+    };
+
+    const canProceed = () => {
+        if (step === 1) return amount && parseFloat(amount) > 0;
+        if (step === 2) return recipients.length > 0;
+        return true;
+    };
+
+    const getPerRecipientAmount = () => {
+        if (recipients.length === 0) return 0;
+        return (parseFloat(amount || 0) / recipients.length).toFixed(4);
+    };
+
+    // Execute the actual payout using the contract
+    const handleProcess = async () => {
+        if (!connected || !publicKey) {
+            setError('Wallet not connected');
+            return;
+        }
+
         setIsProcessing(true);
-        setTimeout(() => {
-            setIsProcessing(false);
+        setError(null);
+        setTxHistory([]);
+
+        try {
+            const totalAmount = parseFloat(amount);
+            const perRecipient = Math.floor((totalAmount * 1000000) / recipients.length); // Convert to microcredits
+
+            // Option 1: Create a payout pool (for ZK privacy)
+            if (createPayoutPool) {
+                const poolId = `${Date.now()}field`;
+                const criteriaHash = `0field`; // Would be hash of recipient list in production
+
+                console.log('Creating payout pool:', { poolId, totalAmount, recipients: recipients.length });
+
+                const poolTxId = await createPayoutPool(
+                    poolId,
+                    Math.floor(totalAmount * 1000000), // Amount in microcredits
+                    recipients.length,
+                    criteriaHash
+                );
+
+                setTxId(poolTxId);
+                setTxHistory([{ type: 'Pool Created', txId: poolTxId }]);
+            }
+
+            // Option 2: Direct transfers (if pool creation not available)
+            // This would iterate and call transferCredits for each recipient
+            // Uncomment below for direct transfer mode:
+            /*
+            for (const recipient of recipients) {
+                console.log(`Transferring ${perRecipient} to ${recipient.address}`);
+                const txId = await transferCredits(recipient.address, perRecipient);
+                setTxHistory(prev => [...prev, { 
+                    type: 'Transfer', 
+                    to: recipient.display, 
+                    txId 
+                }]);
+            }
+            */
+
             setStep(4);
-        }, 3000);
+        } catch (err) {
+            console.error('Payout failed:', err);
+            setError(err.message || 'Transaction failed. Check wallet connection.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const resetFlow = () => {
+        setStep(1);
+        setAmount('');
+        setRecipients([]);
+        setNewRecipient('');
+        setTxId(null);
+        setError(null);
+        setTxHistory([]);
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto p-4">
+        <div className="w-full">
             {/* Progress Stepper */}
-            <div className="flex items-center justify-between mb-12 relative">
-                <div className="absolute left-0 top-1/2 w-full h-0.5 bg-white/10 -z-10"></div>
+            <div className="flex items-center justify-between mb-8 relative px-4">
+                <div className="absolute left-0 top-1/2 w-full h-[1px] bg-[var(--border-medium)] -z-10"></div>
                 {[1, 2, 3].map((s) => (
                     <div
                         key={s}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-500
-              ${step >= s ? 'bg-primary text-white shadow-[0_0_15px_var(--primary-glow)] scale-110' : 'bg-[#1a1a20] text-gray-500 border border-white/10'}`}
+                        className={`w-10 h-10 rounded flex items-center justify-center font-bold transition-all text-sm
+                            ${step >= s
+                                ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)]'
+                                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border border-[var(--border-medium)]'}`}
                     >
                         {step > s ? <CheckCircle size={18} /> : s}
                     </div>
                 ))}
             </div>
 
-            <div className="glass-panel p-1 min-h-[500px] flex flex-col relative overflow-hidden">
-                {/* Connection Lines Background */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none">
-                    <svg width="100%" height="100%">
-                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                            <circle cx="2" cy="2" r="1" fill="#fff" />
-                        </pattern>
-                        <rect width="100%" height="100%" fill="url(#grid)" />
-                    </svg>
+            {/* Error Display */}
+            {error && (
+                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 text-red-500 text-sm flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    {error}
+                    <button onClick={() => setError(null)} className="ml-auto">
+                        <X size={14} />
+                    </button>
                 </div>
+            )}
 
-                <div className="flex-1 p-8 z-10">
+            <div className="border border-[var(--border-medium)] bg-[var(--bg-primary)]/40 min-h-[450px] flex flex-col">
+                <div className="flex-1 p-8">
+                    {/* Step 1: Amount */}
                     {step === 1 && (
-                        <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-                            <h2 className="text-h2 mb-2">Fund Private Pool</h2>
-                            <p className="text-gray-400 mb-8">Lock funds into the ZK-shielded contract. No one sees the recipients.</p>
+                        <div>
+                            <h3 className="text-lg font-bold mb-2">Set Payout Amount</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-6">
+                                Enter the total amount to distribute privately via ZK proofs
+                            </p>
 
-                            <div className="grid gap-6 max-w-lg">
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-primary/50 transition-colors cursor-pointer group">
-                                    <label className="block text-sm text-gray-400 mb-2">Select Asset</label>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">U</div>
-                                        <span className="text-xl font-semibold">USDCx</span>
-                                        <span className="ml-auto text-sm text-gray-500 group-hover:text-primary transition-colors">Balance: 5,420.00</span>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm text-gray-400">Total Amount to Distribute</label>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs text-[var(--text-muted)] block mb-2">Total Amount (ALEO)</label>
                                     <div className="relative">
                                         <input
                                             type="number"
                                             value={amount}
                                             onChange={(e) => setAmount(e.target.value)}
                                             placeholder="0.00"
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-2xl font-mono text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all"
+                                            min="0"
+                                            step="0.01"
+                                            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-medium)] p-4 text-2xl font-bold text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
                                         />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">USDCx</span>
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
+                                            ALEO
+                                        </span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {step === 2 && (
-                        <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-                            <h2 className="text-h2 mb-2">Define Recipients</h2>
-                            <p className="text-gray-400 mb-8">Select criteria for your private airdrop. Eligibility is proven via ZK.</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <CriteriaCard
-                                    selected={selectedCriteria === 'followers_engagement'}
-                                    onClick={() => setSelectedCriteria('followers_engagement')}
-                                    title="Top Engagers"
-                                    desc="Followers with >10 interactions in last 30d"
-                                    count="142 users"
-                                />
-                                <CriteriaCard
-                                    selected={selectedCriteria === 'early_supporters'}
-                                    onClick={() => setSelectedCriteria('early_supporters')}
-                                    title="Early Supporters"
-                                    desc=" followers before Jan 2025"
-                                    count="89 users"
-                                />
-                                <CriteriaCard
-                                    selected={selectedCriteria === 'dao_members'}
-                                    onClick={() => setSelectedCriteria('dao_members')}
-                                    title="DAO Members"
-                                    desc="Holders of >100 GOV tokens"
-                                    count="1,204 users"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {step === 3 && (
-                        <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col items-center justify-center text-center h-full pt-12">
-                            <div className="relative mb-8">
-                                <div className={`w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center ${isProcessing ? 'animate-pulse' : ''}`}>
-                                    <Shield size={48} className="text-primary" />
+                                <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
+                                    <Lock className="inline mr-2" size={12} />
+                                    Uses the Aleo blockchain's native privacy. Recipient amounts are shielded.
                                 </div>
-                                {isProcessing && (
-                                    <>
-                                        <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-                                        <div className="absolute -inset-4 rounded-full border border-primary/20 animate-ping"></div>
-                                    </>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 2: Recipients */}
+                    {step === 2 && (
+                        <div>
+                            <h3 className="text-lg font-bold mb-2">Add Recipients</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-6">
+                                Enter Aleo wallet addresses to receive the payout
+                            </p>
+
+                            <div className="space-y-4">
+                                {/* Add recipient input */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newRecipient}
+                                        onChange={(e) => setNewRecipient(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && addRecipient()}
+                                        placeholder="aleo1..."
+                                        className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-medium)] p-3 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+                                    />
+                                    <button
+                                        onClick={addRecipient}
+                                        className="btn-terminal px-4"
+                                        disabled={!newRecipient.trim()}
+                                    >
+                                        <Plus size={16} />
+                                    </button>
+                                </div>
+
+                                {/* Recipients list */}
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {recipients.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-[var(--text-muted)] border border-dashed border-[var(--border-medium)]">
+                                            Add recipient addresses above
+                                        </div>
+                                    ) : (
+                                        recipients.map((r) => (
+                                            <div
+                                                key={r.id}
+                                                className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)]"
+                                            >
+                                                <span className="text-sm font-mono">{r.display}</span>
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-xs text-[var(--accent-primary)]">
+                                                        {getPerRecipientAmount()} ALEO
+                                                    </span>
+                                                    <button
+                                                        onClick={() => removeRecipient(r.id)}
+                                                        className="text-[var(--text-muted)] hover:text-red-500"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {recipients.length > 0 && (
+                                    <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-[var(--text-muted)]">Total Recipients:</span>
+                                            <span className="font-bold">{recipients.length}</span>
+                                        </div>
+                                        <div className="flex justify-between mt-2">
+                                            <span className="text-[var(--text-muted)]">Each Receives:</span>
+                                            <span className="font-bold text-[var(--accent-primary)]">{getPerRecipientAmount()} ALEO</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 3: Confirm */}
+                    {step === 3 && (
+                        <div className="flex flex-col items-center justify-center text-center h-full py-8">
+                            <div className={`w-24 h-24 border border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 flex items-center justify-center mb-8 ${isProcessing ? 'animate-pulse' : ''}`}>
+                                {isProcessing ? (
+                                    <Loader size={40} className="text-[var(--accent-primary)] animate-spin" />
+                                ) : (
+                                    <Shield size={40} className="text-[var(--accent-primary)]" />
                                 )}
                             </div>
 
-                            <h2 className="text-h2 mb-2">{isProcessing ? 'Generating Zero-Knowledge Proofs...' : 'Ready to Distribute'}</h2>
-                            <p className="text-gray-400 max-w-md mx-auto mb-8">
+                            <h3 className="text-xl font-bold mb-2">
+                                {isProcessing ? 'Processing Transaction...' : 'Confirm Private Payout'}
+                            </h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-8 max-w-sm">
                                 {isProcessing
-                                    ? 'Encrypting recipient list and generating validity proofs. This ensures privacy while verifying total solvency.'
-                                    : `You are about to send ${amount || '1000'} USDCx to ~142 hidden recipients. Transaction history will remain opaque.`}
+                                    ? 'Creating ZK proofs and submitting to Aleo network...'
+                                    : `Distribute ${amount} ALEO to ${recipients.length} recipients privately`}
                             </p>
 
                             {!isProcessing && (
                                 <button
                                     onClick={handleProcess}
-                                    className="btn-primary w-full max-w-sm py-4 text-lg flex items-center justify-center gap-3"
+                                    className="btn-terminal px-8 py-3 text-sm flex items-center gap-2"
+                                    disabled={!connected}
                                 >
-                                    <Lock size={20} />
+                                    <Lock size={16} />
                                     Execute Private Payout
                                 </button>
+                            )}
+
+                            {!connected && (
+                                <p className="text-xs text-red-500 mt-4">
+                                    Connect wallet to execute transaction
+                                </p>
                             )}
                         </div>
                     )}
 
+                    {/* Step 4: Complete */}
                     {step === 4 && (
-                        <div className="animate-in zoom-in duration-500 flex flex-col items-center justify-center text-center h-full pt-12">
-                            <div className="w-24 h-24 rounded-full bg-green-500/20 flex items-center justify-center mb-6">
-                                <CheckCircle size={48} className="text-green-500" />
-                            </div>
-                            <h2 className="text-h2 mb-4">Distribution Complete</h2>
-                            <p className="text-gray-400 mb-8">Funds have been privately allocated. Recipients can claim anonymously.</p>
-
-                            <div className="glass-panel p-4 bg-black/40 flex items-center gap-4 text-left max-w-md w-full">
-                                <div className="p-2 bg-white/5 rounded-lg">
-                                    <Wallet size={24} className="text-gray-400" />
-                                </div>
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase">Transaction Hash</div>
-                                    <div className="font-mono text-sm text-primary truncate">aleo1x...9j2k (Private)</div>
-                                </div>
-                                <button className="ml-auto text-sm text-primary hover:text-white">View on Explorer</button>
+                        <div className="flex flex-col items-center justify-center text-center h-full py-8">
+                            <div className="w-24 h-24 border border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 flex items-center justify-center mb-8">
+                                <CheckCircle size={40} className="text-[var(--accent-primary)]" />
                             </div>
 
-                            <button onClick={() => setStep(1)} className="mt-8 btn-ghost">Start New Payout</button>
+                            <h3 className="text-xl font-bold mb-2">Payout Submitted</h3>
+                            <p className="text-sm text-[var(--text-muted)] mb-6">
+                                Transaction submitted to Aleo network
+                            </p>
+
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-medium)] p-4 max-w-md w-full mb-6">
+                                <div className="text-xs text-[var(--text-muted)] mb-2">Transaction ID</div>
+                                <div className="font-mono text-xs text-[var(--accent-primary)] break-all mb-3">
+                                    {txId || 'Transaction pending...'}
+                                </div>
+                                {txId && (
+                                    <a
+                                        href={`https://explorer.aleo.org/transaction/${txId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs text-[var(--accent-secondary)] hover:underline"
+                                    >
+                                        View on Explorer <ExternalLink size={12} />
+                                    </a>
+                                )}
+                            </div>
+
+                            {txHistory.length > 0 && (
+                                <div className="w-full max-w-md text-left mb-6">
+                                    <div className="text-xs text-[var(--text-muted)] mb-2">Transaction History</div>
+                                    <div className="space-y-2">
+                                        {txHistory.map((tx, i) => (
+                                            <div key={i} className="text-xs p-2 bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
+                                                <span className="text-[var(--text-muted)]">{tx.type}</span>
+                                                {tx.to && <span className="text-[var(--text-primary)]"> → {tx.to}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={resetFlow}
+                                className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                            >
+                                Start New Payout
+                            </button>
                         </div>
                     )}
                 </div>
 
-                {/* Footer Actions */}
+                {/* Footer */}
                 {step < 3 && (
-                    <div className="p-6 border-t border-white/5 flex justify-end z-10 relative">
-                        <button onClick={handleNext} className="btn-primary flex items-center gap-2">
-                            Continue <ArrowRight size={18} />
-                        </button>
+                    <div className="p-6 border-t border-[var(--border-medium)] flex justify-between items-center bg-[var(--bg-secondary)]/20">
+                        <div className="text-xs text-[var(--text-muted)]">
+                            Step {step} of 3
+                        </div>
+                        <div className="flex gap-2">
+                            {step > 1 && (
+                                <button
+                                    onClick={() => setStep(step - 1)}
+                                    className="px-4 py-2 text-sm border border-[var(--border-medium)] hover:border-[var(--text-muted)]"
+                                >
+                                    Back
+                                </button>
+                            )}
+                            <button
+                                onClick={handleNext}
+                                className="btn-terminal px-6 py-2 text-sm flex items-center gap-2"
+                                disabled={!canProceed()}
+                            >
+                                Continue <ArrowRight size={16} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
         </div>
     );
 };
-
-function CriteriaCard({ title, desc, count, selected, onClick }) {
-    return (
-        <div
-            onClick={onClick}
-            className={`p-6 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden group
-        ${selected
-                    ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(59,130,246,0.2)]'
-                    : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
-                }`}
-        >
-            <div className="flex justify-between items-start mb-2">
-                <h3 className="font-semibold text-lg">{title}</h3>
-                {selected && <CheckCircle size={18} className="text-primary" />}
-            </div>
-            <p className="text-gray-400 text-sm mb-4">{desc}</p>
-            <div className="flex items-center gap-2 text-xs font-mono text-accent bg-accent/10 w-fit px-2 py-1 rounded">
-                <Users size={12} />
-                {count}
-            </div>
-        </div>
-    );
-}
 
 export default PayoutFlow;
