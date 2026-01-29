@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import WalletPage from './pages/WalletPage';
 import ProfilePage from './pages/ProfilePage';
 import LandingPage from './pages/LandingPage';
+import WalletDebug from './components/WalletDebug';
 
 function App() {
   return (
@@ -27,6 +28,8 @@ function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          {/* Debug component - remove after troubleshooting */}
+          <WalletDebug />
         </BrowserRouter>
       </AppProvider>
     </AleoWalletProvider>

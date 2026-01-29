@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Terminal, Shield, Lock, X, ChevronRight, Key } from 'lucide-react';
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
+import { useWalletModal } from "@demox-labs/aleo-wallet-adapter-reactui";
+import { WalletAdapterNetwork, DecryptPermission } from "@demox-labs/aleo-wallet-adapter-base";
 import { useApp } from '../context/AppContext';
 
 const LandingPage = () => {
@@ -132,45 +134,34 @@ const LandingPage = () => {
     );
 };
 
+const StatCard = ({ label, value, variant }) => {
+    const colors = {
+        primary: 'var(--accent-primary)',
+        secondary: 'var(--accent-secondary)',
+        success: 'var(--accent-primary)'
+    };
+
+    return (
+        <div className="border border-[var(--border-subtle)] bg-[var(--bg-secondary)] p-6 hover:border-[var(--border-medium)] transition-all group">
+            <div className="text-xs text-[var(--text-muted)] mb-2 uppercase tracking-wider font-light">{label}</div>
+            <div className="text-3xl font-bold" style={{ color: colors[variant] }}>{value}</div>
+        </div>
+    );
+};
+
 const ConnectModal = ({ onClose }) => {
-    const { select, connect, wallet, connected } = useWallet();
+    const { wallet, wallets } = useWallet();
+    const { setVisible } = useWalletModal();
     const [isTriggering, setIsTriggering] = useState(false);
 
     const handleLeoConnect = async () => {
         setIsTriggering(true);
         try {
-            // Select the Leo Wallet adapter
-            await select("Leo Wallet");
-
-            // Wait for the adapter to be ready (up to 2 seconds)
-            // This handles the case where select() resolves but internal state isn't finished
-            let ready = false;
-            for (let i = 0; i < 20; i++) {
-                if (wallet && wallet.adapter.name === "Leo Wallet") {
-                    ready = true;
-                    break;
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            // Trigger the connection popup with retry
-            try {
-                await connect();
-                onClose();
-            } catch (err) {
-                if (err.name === 'WalletNotSelectedError') {
-                    // One last attempt after a longer pause
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    await connect();
-                    onClose();
-                } else {
-                    throw err;
-                }
-            }
+            // Close the custom modal and open the wallet adapter modal
+            onClose();
+            setVisible(true);
         } catch (error) {
-            console.error("Leo connection failed:", error);
-            // Fallback to manual selection if auto-select fails
-            alert("Connection failed. Please ensure Leo Wallet is installed and try again.");
+            console.error("Failed to open wallet modal:", error);
         } finally {
             setIsTriggering(false);
         }
@@ -193,13 +184,13 @@ const ConnectModal = ({ onClose }) => {
                 <div className="space-y-4">
                     <button
                         onClick={handleLeoConnect}
-                        disabled={isTriggering || connected}
+                        disabled={isTriggering}
                         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-4 flex items-center justify-between group hover:border-[var(--accent-primary)] transition-all cursor-pointer disabled:opacity-50"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center text-white font-black text-xs">L</div>
                             <span className="text-sm font-semibold">
-                                {isTriggering ? 'Triggering Wallet...' : 'Leo Wallet'}
+                                {isTriggering ? 'Opening Wallet...' : 'Leo Wallet'}
                             </span>
                         </div>
                         <ChevronRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--accent-primary)]" />
@@ -224,21 +215,6 @@ const ConnectModal = ({ onClose }) => {
                     </button>
                 </div>
             </div>
-        </div>
-    );
-};
-
-const StatCard = ({ label, value, variant }) => {
-    const colors = {
-        primary: 'var(--accent-secondary)',
-        secondary: 'var(--text-secondary)',
-        success: 'var(--accent-primary)'
-    };
-
-    return (
-        <div className="border border-[var(--border-subtle)] bg-[var(--bg-secondary)] p-6 hover:border-[var(--border-medium)] transition-all group">
-            <div className="text-xs text-[var(--text-muted)] mb-2 uppercase tracking-wider font-light">{label}</div>
-            <div className="text-3xl font-bold" style={{ color: colors[variant] }}>{value}</div>
         </div>
     );
 };
