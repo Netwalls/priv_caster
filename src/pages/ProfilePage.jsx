@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, Link as LinkIcon, Shield, User, X, Edit3, Settings, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Post from '../components/Post';
@@ -6,7 +6,45 @@ import Post from '../components/Post';
 const ProfilePage = () => {
     const { user, posts, updateProfile, aleoIdentity, setupIdentity, isSyncing, connected } = useApp();
     const [activeTab, setActiveTab] = useState('Posts');
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+
+    // Edit form state
+    const [editForm, setEditForm] = useState({
+        name: user.name,
+        username: user.username,
+        bio: user.bio,
+        location: user.location || 'Unknown',
+        website: user.website || 'N/A'
+    });
+
+    // Update form when user changes
+    React.useEffect(() => {
+        setEditForm({
+            name: user.name,
+            username: user.username,
+            bio: user.bio,
+            location: user.location || 'Unknown',
+            website: user.website || 'N/A'
+        });
+    }, [user]);
+
+    // Handle save
+    const handleSave = () => {
+        updateProfile(editForm);
+        setIsEditing(false);
+    };
+
+    // Handle cancel
+    const handleCancel = () => {
+        setEditForm({
+            name: user.name,
+            username: user.username,
+            bio: user.bio,
+            location: user.location || 'Unknown',
+            website: user.website || 'N/A'
+        });
+        setIsEditing(false);
+    };
 
     // Filter posts based on tab
     const filteredPosts = posts.filter(post => {
@@ -41,12 +79,6 @@ const ProfilePage = () => {
                             </div>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="p-2 hover:bg-[var(--bg-tertiary)] transition-colors rounded"
-                    >
-                        <Settings size={18} className="text-[var(--text-muted)]" />
-                    </button>
                 </div>
             </div>
 
@@ -58,21 +90,82 @@ const ProfilePage = () => {
                             {user.avatar}
                         </div>
                         <div className="flex-1 text-center md:text-left">
+                            {/* Name - Editable */}
                             <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-                                <h1 className="text-2xl font-bold">{user.name}</h1>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                        className="text-2xl font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] px-3 py-1 rounded text-[var(--text-primary)]"
+                                        placeholder="Your Name"
+                                    />
+                                ) : (
+                                    <h1 className="text-2xl font-bold">{user.name}</h1>
+                                )}
                                 {aleoIdentity && <Check size={18} className="text-[var(--accent-primary)]" />}
                             </div>
-                            <div className="text-[var(--accent-secondary)] mb-4">@{user.username}</div>
-                            <p className="text-[var(--text-secondary)] mb-4 max-w-xl">{user.bio}</p>
 
+                            {/* Username - Editable */}
+                            <div className="text-[var(--accent-secondary)] mb-4">
+                                {isEditing ? (
+                                    <div className="flex items-center gap-1">
+                                        <span>@</span>
+                                        <input
+                                            type="text"
+                                            value={editForm.username}
+                                            onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                                            className="bg-[var(--bg-tertiary)] border border-[var(--border-medium)] px-2 py-1 rounded text-[var(--accent-secondary)]"
+                                            placeholder="username"
+                                        />
+                                    </div>
+                                ) : (
+                                    <span>@{user.username}</span>
+                                )}
+                            </div>
+
+                            {/* Bio - Editable */}
+                            {isEditing ? (
+                                <textarea
+                                    value={editForm.bio}
+                                    onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-medium)] px-3 py-2 rounded text-[var(--text-secondary)] mb-4 resize-none"
+                                    placeholder="Your bio"
+                                    rows="3"
+                                />
+                            ) : (
+                                <p className="text-[var(--text-secondary)] mb-4 max-w-xl">{user.bio}</p>
+                            )}
+
+                            {/* Location & Website - Editable */}
                             <div className="flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
                                 <div className="flex items-center gap-1">
                                     <MapPin size={14} />
-                                    <span>{user.location}</span>
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            value={editForm.location}
+                                            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                                            className="bg-[var(--bg-tertiary)] border border-[var(--border-medium)] px-2 py-1 rounded text-[var(--text-muted)] text-xs w-32"
+                                            placeholder="Location"
+                                        />
+                                    ) : (
+                                        <span>{user.location}</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <LinkIcon size={14} />
-                                    <span>{user.website}</span>
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            value={editForm.website}
+                                            onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                                            className="bg-[var(--bg-tertiary)] border border-[var(--border-medium)] px-2 py-1 rounded text-[var(--text-muted)] text-xs w-40"
+                                            placeholder="website.com"
+                                        />
+                                    ) : (
+                                        <span>{user.website}</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Calendar size={14} />
@@ -80,14 +173,35 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Edit/Save/Cancel Buttons */}
                         <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => setIsEditModalOpen(true)}
-                                className="btn-terminal px-6 py-2 text-sm flex items-center gap-2"
-                            >
-                                <Edit3 size={14} />
-                                Edit Profile
-                            </button>
+                            {isEditing ? (
+                                <>
+                                    <button
+                                        onClick={handleSave}
+                                        className="btn-terminal px-6 py-2 text-sm flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                                    >
+                                        <Check size={14} />
+                                        Save Changes
+                                    </button>
+                                    <button
+                                        onClick={handleCancel}
+                                        className="px-6 py-2 text-sm flex items-center gap-2 border border-[var(--border-medium)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                                    >
+                                        <X size={14} />
+                                        Cancel
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    className="btn-terminal px-6 py-2 text-sm flex items-center gap-2"
+                                >
+                                    <Edit3 size={14} />
+                                    Edit Profile
+                                </button>
+                            )}
                             {connected && !aleoIdentity && (
                                 <button
                                     onClick={() => setupIdentity(user.username)}

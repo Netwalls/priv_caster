@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { saveIdentity, fetchIdentity } from '../utils/identityApi';
+import { savePost, fetchPosts, deletePost as deletePostApi } from '../utils/postApi';
 import { useAleoWallet } from '../hooks/useAleoWallet';
+import { getRelativeTime } from '../utils/privacy';
 
 const AppContext = createContext(undefined);
 
@@ -10,16 +12,34 @@ export const AppProvider = ({ children }) => {
         connected,
         createIdentity,
         createCast,
-        getRecords
+        getRecords,
+        tipPost
     } = useAleoWallet();
 
     const walletAddress = publicKey;
 
     const [posts, setPosts] = useState([]);
+
+    // Fetch posts from backend on mount
+    useEffect(() => {
+        const loadPosts = async () => {
+            try {
+                const backendPosts = await fetchPosts();
+                setPosts(backendPosts);
+            } catch (err) {
+                console.error('Failed to fetch posts:', err);
+            }
+        };
+        loadPosts();
+    }, []);
     const [user, setUser] = useState({
         name: 'Anonymous User',
         username: 'anon',
         bio: 'Privacy is a fundamental right',
+        location: 'Unknown',
+        website: 'N/A',
+        joinedDate: 'January 2026',
+        avatar: 'A',
         following: 0,
         followers: 0
     });
@@ -38,22 +58,19 @@ export const AppProvider = ({ children }) => {
         tryFetchIdentity();
     }, [publicKey]);
 
-    /**
-     * WAVE 1: LOCAL POSTING
-     * Blockchain integration coming in Wave 2
-     */
+    // Handle adding a new post
     const addPost = async (text, isPrivate = false) => {
         if (!connected) {
             throw new Error('Please connect your wallet first');
         }
 
         try {
+            // Check if user has identity
             let identityRecord = aleoIdentity;
-            // Step 1: Check if we need to create identity
-            if (!aleoIdentity) {
-                console.log('🔐 Creating your anonymous identity first...');
-                alert('🔐 Creating your anonymous identity...\n\nThis is a one-time setup. Your wallet will popup twice:\n1. First to create identity\n2. Then to post');
 
+            // If no identity, create one first
+            if (!identityRecord) {
+                console.log('No identity found, creating one...');
                 const userId = `${Date.now()}${Math.floor(Math.random() * 10000)}field`;
                 const identityTx = await createIdentity(userId, 10);
                 console.log('✅ Identity created! TX:', identityTx);
@@ -72,45 +89,57 @@ export const AppProvider = ({ children }) => {
                 identityRecord = newIdentity;
             }
 
-            // Simulate post creation (replace with blockchain logic as needed)
-            const castId = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
-            const contentHash = btoa(unescape(encodeURIComponent(text))).slice(0, 32); // simple hash for demo
+            // V2: Simple on-chain post creation (NO RECORD PASSING!)
+            const castId = `${Date.now()}${Math.floor(Math.random() * 10000)}field`;
+            const contentHash = `${Math.abs(text.split('').reduce((a, c) => ((a << 5) - a) + c.charCodeAt(0), 0))}field`;
             const timestamp = Math.floor(Date.now() / 1000);
 
-            // Use current or just-created identity record
-            // const txId = await createCast(identityRecord, castId, contentHash, timestamp);
-            // For now, simulate txId
-            const txId = `sim-tx-${castId}`;
+            // V2 Call - only needs castId, contentHash, timestamp!
+            console.log('📡 Calling privcaster_v2.aleo create_cast...');
+            const txId = await createCast(castId, contentHash, timestamp);
+            console.log('✅ Cast created! TX:', txId);
 
             // Generate anonymous ID
-            const anonId = `anon_${String(identityRecord.user_id).slice(-5)}`;
+            const anonId = `anon_${String(identityRecord.user_id).replace('field', '').slice(-5)}`;
 
             // Add to local feed for immediate display
             const newPost = {
-                id: castId,
+                id: castId.replace('field', ''),
                 user: anonId,
                 userId: anonId,
                 text: text,
                 verified: true,
-                time: 'just now',
+                time: getRelativeTime(timestamp),
                 likes: 0,
                 replies: 0,
                 relays: 0,
                 isLiked: false,
-                onChain: false,  // Set to true when blockchain posting is live
+                onChain: true,  // V2: Real blockchain post!
                 isPrivate: isPrivate,
                 timestamp: timestamp * 1000,
                 txId: txId
             };
 
+            // Save to backend
+            await savePost(newPost);
             setPosts(prev => [newPost, ...prev]);
 
-            alert(`✅ Posted!\n\nTX: ${txId}`);
+            alert(`✅ Posted to blockchain!\n\nTX: ${txId}\n\nExplorer: https://explorer.aleo.org/transaction/${txId}`);
 
             return txId;
         } catch (error) {
             console.error('❌ Posting failed:', error);
             throw error;
+        }
+    };
+    // Delete post by id
+    const deletePost = async (postId) => {
+        try {
+            await deletePostApi(postId);
+            setPosts(prev => prev.filter(post => post.id !== postId));
+        } catch (err) {
+            console.error('Failed to delete post:', err);
+            throw err;
         }
     };
 
@@ -151,9 +180,26 @@ export const AppProvider = ({ children }) => {
         console.log('💡 Blockchain sync coming in Wave 2');
     }, []);
 
-    const handleTipPost = useCallback(async () => {
-        console.log('💡 Tipping coming in Wave 2');
-    }, []);
+    // Handle tipping a post (on-chain)
+    const handleTipPost = useCallback(async (post, amount) => {
+        if (!connected) throw new Error('Please connect your wallet first');
+        if (!post || !post.id) throw new Error('Invalid post');
+        // For demo, assume post.userId is the recipient's anonId, but you need the Aleo address
+        // In production, you should store the author's Aleo address with the post
+        // For now, fallback to post.userId or throw error
+        const authorAddress = post.userId || post.user;
+        if (!authorAddress) throw new Error('Missing author address');
+        // post.id is the castId/field
+        const postId = post.id;
+        try {
+            const txId = await tipPost(authorAddress, amount, postId);
+            alert(`✅ Tip sent!\n\nTX: ${txId}`);
+            return txId;
+        } catch (err) {
+            console.error('❌ Tip failed:', err);
+            throw err;
+        }
+    }, [connected, tipPost]);
 
     return (
         <AppContext.Provider value={{
@@ -169,7 +215,8 @@ export const AppProvider = ({ children }) => {
             updateProfile,
             setupIdentity,
             syncWithBlockchain,
-            handleTipPost
+            handleTipPost,
+            deletePost
         }}>
             {children}
         </AppContext.Provider>

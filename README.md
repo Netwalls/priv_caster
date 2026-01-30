@@ -16,6 +16,17 @@ It enables users to:
 - Communicate privately via encrypted DMs and gated communities
 - Receive private tips and execute bulk payouts to supporters or community members — all verifiably private
 
+## 📡 Deployed Contract
+
+**privcaster_v2.aleo** is now live on Aleo Testnet!
+
+- **Contract**: `privcaster_v2.aleo`
+- **Network**: Testnet
+- **Transaction**: [`at1z6sgscd2n2nkkfstffww9mhf656t9hlrlpa5fh9985mxdtd59syqufjqk8`](https://explorer.aleo.org/transaction/at1z6sgscd2n2nkkfstffww9mhf656t9hlrlpa5fh9985mxdtd59syqufjqk8)
+- **Deployment Cost**: 7.36 credits
+- **Architecture**: Mapping-based (no record-passing required!)
+
+
 Every action is protected by zero-knowledge proofs: validity is proven without revealing underlying data. This creates a safe space for authentic expression, free from doxxing, harassment, bullying, surveillance, or chain analysis — especially critical in high-risk regions and for sensitive topics.
 
 ### 🌟 Why PrivCaster Exists
@@ -200,3 +211,19 @@ This version is clean, focused, detailed, and optimized to impress buildathon ju
 privcaster_v1.aleo is now live on Aleo testnet!
 
 Transaction: https://explorer.aleo.org/transaction/at1tqar505gk8x7wrsuyx4pc7cdmhyfdh7knlvtg7ktq08wur4c0gxq6ghvky
+
+📡 Broadcasting deployment for privcaster_v2.aleo...
+💰Your current public balance is 22.65341 credits.
+
+✔ This transaction will cost you 7.359829 credits. Do you want to proceed? · yes
+
+✉️ Broadcasted transaction with:
+  - transaction ID: 'at1z6sgscd2n2nkkfstffww9mhf656t9hlrlpa5fh9985mxdtd59syqufjqk8'
+  - fee ID: 'au1gvmacpw668mr894yxp0qx7e9njwgz7mzt433k56pz3xmq9f0jqpqg0z54x'
+  - fee transaction ID: 'at1gl9kq5vl3mg3nqcu8kasn4kv748kt8trkr8v9pcv4lkhhmqjac8sl42xjt'
+    (use this to check for rejected transactions)
+
+🔄 Searching up to 12 blocks to confirm transaction (this may take several seconds)...
+Explored 1 blocks.
+Transaction accepted.
+✅ Deployment confirmed!

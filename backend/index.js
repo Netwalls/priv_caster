@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import postRoutes from './postRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -15,6 +16,9 @@ app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true
 }));
+
+// Post routes
+app.use(postRoutes);
 
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI;
