@@ -1,6 +1,6 @@
 // Utility for interacting with the backend identity API
 
-const API_BASE = 'http://localhost:4000'; // Change to your backend URL if deployed
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export async function saveIdentity(address, identity) {
   const res = await fetch(`${API_BASE}/identity`, {
