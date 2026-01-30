@@ -1,6 +1,6 @@
 // Utility for interacting with the backend identity API
-
-const API_BASE = 'https://priv-caster.onrender.com';
+// Uses Vercel proxy to avoid CORS issues
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export async function saveIdentity(address, identity) {
   const res = await fetch(`${API_BASE}/identity`, {
