@@ -129,6 +129,19 @@ export const AppProvider = ({ children }) => {
             return txId;
         } catch (error) {
             console.error('❌ Posting failed:', error);
+
+            // Check if it's a "no credits" error
+            const errorMsg = error.message || error.toString();
+            if (errorMsg.includes('No records for fee') || errorMsg.includes('INVALID_PARAMS')) {
+                alert('❌ Transaction Failed: Insufficient Credits\n\n' +
+                    'Your wallet needs Aleo testnet credits to pay transaction fees.\n\n' +
+                    '🔗 Get free credits here:\n' +
+                    'https://faucet.aleo.org\n\n' +
+                    'After receiving credits, try posting again!');
+            } else {
+                alert(`❌ Posting failed: ${errorMsg}`);
+            }
+
             throw error;
         }
     };
