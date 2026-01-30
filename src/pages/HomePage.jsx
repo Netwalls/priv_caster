@@ -4,7 +4,7 @@ import Post from '../components/Post';
 import { Radio } from 'lucide-react';
 
 const HomePage = () => {
-    const { posts, addPost, aleoIdentity, isSyncing, connected, syncWithBlockchain } = useApp();
+    const { posts, addPost, aleoIdentity, isSyncing, connected, syncWithBlockchain, setupIdentity } = useApp();
     const [newPostText, setNewPostText] = useState("");
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);

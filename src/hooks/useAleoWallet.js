@@ -51,7 +51,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'credits.aleo',
             'transfer_private',
             inputs,
@@ -130,7 +130,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'create_identity',
             inputs,
@@ -153,7 +153,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'create_cast',
             inputs,
@@ -176,7 +176,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'follow_user',
             inputs,
@@ -199,7 +199,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'engage_with_cast',
             inputs,
@@ -228,7 +228,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'create_payout_pool',
             inputs,
@@ -255,7 +255,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'claim_payout',
             inputs,
@@ -292,7 +292,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'create_group',
             inputs,
@@ -314,7 +314,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'add_member',
             inputs,
@@ -336,7 +336,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'group_payout',
             inputs,
@@ -364,7 +364,7 @@ export const useAleoWallet = () => {
 
         const aleoTransaction = Transaction.createTransaction(
             publicKey,
-            WalletAdapterNetwork.Testnet,
+            WalletAdapterNetwork.TestnetBeta,
             'privcaster_v1.aleo',
             'tip_post',
             inputs,

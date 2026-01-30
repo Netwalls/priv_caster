@@ -10,7 +10,12 @@ const ProfilePage = () => {
 
     // Filter posts based on tab
     const filteredPosts = posts.filter(post => {
-        if (activeTab === 'Posts') return post.userId === `@${user.username}`;
+        if (activeTab === 'Posts') {
+            if (aleoIdentity) {
+                return post.userId === `anon_${String(aleoIdentity.data?.user_id || aleoIdentity.user_id).slice(-5)}`;
+            }
+            return post.userId === `@${user.username}`;
+        }
         if (activeTab === 'Likes') return post.isLiked;
         return false;
     });
@@ -25,7 +30,14 @@ const ProfilePage = () => {
                         <div>
                             <h2 className="text-xl font-bold">Profile</h2>
                             <div className="text-xs text-[var(--text-muted)]">
-                                {aleoIdentity ? 'Verified on Aleo' : 'Not verified'}
+                                {aleoIdentity ? (
+                                    <>
+                                        <span className="text-green-600">Verified on Aleo</span>
+                                        <span className="ml-2 text-gray-400">ID: {aleoIdentity.data?.user_id || aleoIdentity.user_id}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-red-600">Not verified</span>
+                                )}
                             </div>
                         </div>
                     </div>
