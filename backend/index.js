@@ -11,9 +11,24 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-// Allow CORS for frontend dev
+// Allow CORS for frontend (localhost + production)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://priv-caster-bf5v.vercel.app',
+  'https://privcaster.vercel.app' // in case you update domain
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
