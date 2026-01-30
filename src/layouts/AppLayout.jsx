@@ -63,7 +63,7 @@ const AppLayout = () => {
                         <span>Network</span>
                     </div>
                     <div className="space-y-4">
-                        <StatusItem label="Network" value="Aleo Mainnet" active={true} />
+                        <StatusItem label="Network" value="Aleo Testnet" active={true} />
                         <StatusItem label="ZK Engine" value="Prover v2.1" active={true} />
                         <StatusItem label="Privacy" value="99.9% Shielded" active={true} />
                     </div>
