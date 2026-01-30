@@ -1,6 +1,6 @@
 // Utility for interacting with the backend identity API
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE = 'https://priv-caster.onrender.com';
 
 export async function saveIdentity(address, identity) {
   const res = await fetch(`${API_BASE}/identity`, {
