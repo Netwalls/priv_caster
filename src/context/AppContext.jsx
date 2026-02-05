@@ -25,7 +25,27 @@ export const AppProvider = ({ children }) => {
         const loadPosts = async () => {
             try {
                 const backendPosts = await fetchPosts();
-                setPosts(backendPosts);
+
+                // Recalculate relative time for all posts
+                const processedPosts = backendPosts.map(post => {
+                    let timestamp = post.timestamp;
+
+                    // Heuristic: If timestamp is in milliseconds (huge number), convert to seconds
+                    // 100,000,000,000 corresponds to year 5138 if seconds, but 1973 if ms
+                    // Recent timestamps in ms are around 1,700,000,000,000 (13 digits)
+                    // Recent timestamps in seconds are around 1,700,000,000 (10 digits)
+                    if (timestamp > 100000000000) {
+                        timestamp = Math.floor(timestamp / 1000);
+                    }
+
+                    return {
+                        ...post,
+                        timestamp: timestamp, // Normalize to seconds
+                        time: getRelativeTime(timestamp)
+                    };
+                });
+
+                setPosts(processedPosts);
             } catch (err) {
                 console.error('Failed to fetch posts:', err);
             }
